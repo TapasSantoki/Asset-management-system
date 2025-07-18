@@ -1,0 +1,152 @@
+--1
+SELECT u.UserName, SUM(t.Amount) AS TotalAmount
+FROM Hedge_Funds.Transaction t
+JOIN Hedge_Funds.Portfolio p ON t.PortfolioID = p.PortfolioID
+JOIN Hedge_Funds.User u ON p.UserId = u.UserId
+GROUP BY u.UserName
+ORDER BY TotalAmount DESC
+LIMIT 5;
+
+--2
+SELECT p.PortfolioName, COUNT(DISTINCT t.AssetID) AS AssetCount
+FROM Hedge_Funds.Transaction t
+JOIN Hedge_Funds.Portfolio p ON t.PortfolioID = p.PortfolioID
+GROUP BY p.PortfolioName
+ORDER BY AssetCount DESC
+LIMIT 1;
+
+
+--3
+SELECT a.AssetName, COUNT(t.TransactionID) AS TransactionCount
+FROM Hedge_Funds.Transaction t
+JOIN Hedge_Funds.Asset a ON t.AssetID = a.AssetID
+GROUP BY a.AssetName
+ORDER BY TransactionCount DESC
+LIMIT 3;
+
+--4
+SELECT a.AssetName, AVG(t.Unit) AS AvgUnit
+FROM Hedge_Funds.Transaction t
+JOIN Hedge_Funds.Asset a ON t.AssetID = a.AssetID
+GROUP BY a.AssetName;
+
+
+--5
+SELECT 
+    t.TransactionID,
+    p.PortfolioName,
+    t.Time,
+    t.Amount,
+    SUM(t.Amount) OVER (
+        PARTITION BY t.PortfolioID 
+        ORDER BY t.Time 
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS RunningTotal
+FROM 
+    Hedge_Funds.Transaction t
+JOIN 
+    Hedge_Funds.Portfolio p ON t.PortfolioID = p.PortfolioID;
+
+--6
+SELECT DATE_TRUNC('month', Time) AS Month, COUNT(*) AS TransactionCount
+FROM Hedge_Funds.Transaction
+GROUP BY Month
+ORDER BY Month;
+
+--7
+SELECT a.AssetName, AVG(ad.NAV) AS AverageNAV
+FROM Hedge_Funds.Asset a
+JOIN Hedge_Funds.AssetData ad ON a.AssetID = ad.AssetID
+GROUP BY a.AssetName
+ORDER BY AverageNAV DESC
+LIMIT 1;
+
+--8
+SELECT 
+    p.PortfolioName,
+    SUM(t.Amount) AS TotalBuyAmount
+FROM 
+    Hedge_Funds.Transaction t
+JOIN 
+    Hedge_Funds.Portfolio p ON t.PortfolioID = p.PortfolioID
+WHERE 
+    t.TransactionType = 'Buy'
+    AND EXTRACT(YEAR FROM t.Time) = 2025
+GROUP BY 
+    p.PortfolioName
+ORDER BY 
+    TotalBuyAmount DESC
+LIMIT 3;
+
+--9
+SELECT a.AssetName, SUM(t.Amount) AS TotalAmount
+FROM Hedge_Funds.Transaction t
+JOIN Hedge_Funds.Asset a ON t.AssetID = a.AssetID
+GROUP BY a.AssetName
+ORDER BY TotalAmount DESC;
+
+--10
+SELECT u.UserName
+FROM Hedge_Funds.User u
+LEFT JOIN Hedge_Funds.Portfolio p ON u.UserId = p.UserId
+LEFT JOIN Hedge_Funds.Transaction t ON p.PortfolioID = t.PortfolioID
+WHERE t.TransactionID IS NULL;
+
+--11
+SELECT a.AssetName, AVG(ad.NAV) AS AvgLast30DaysNAV
+FROM Hedge_Funds.AssetData ad
+JOIN Hedge_Funds.Asset a ON a.AssetID = ad.AssetID
+WHERE ad.Date >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY a.AssetName;
+
+--12
+SELECT u.UserName, SUM(t.Amount) OVER (PARTITION BY u.UserName) AS CumulativeAmount
+FROM Hedge_Funds.Transaction t
+JOIN Hedge_Funds.Portfolio p ON t.PortfolioID = p.PortfolioID
+JOIN Hedge_Funds.User u ON p.UserId = u.UserId;
+
+
+--13
+SELECT 
+    u.UserId,
+    u.UserName,
+    COALESCE(SUM(CASE WHEN t.TransactionType = 'Buy' THEN t.Amount END), 0) AS TotalBuy,
+    COALESCE(SUM(CASE WHEN t.TransactionType = 'Sell' THEN t.Amount END), 0) AS TotalSell
+FROM 
+    Hedge_Funds.User u
+JOIN 
+    Hedge_Funds.Portfolio p ON u.UserId = p.UserId
+JOIN 
+    Hedge_Funds.Transaction t ON p.PortfolioID = t.PortfolioID
+GROUP BY 
+    u.UserId, u.UserName
+HAVING 
+    GREATEST(SUM(CASE WHEN t.TransactionType = 'Buy' THEN t.Amount END), 1) 
+    / GREATEST(SUM(CASE WHEN t.TransactionType = 'Sell' THEN t.Amount END), 1) >= 2;
+
+--14
+SELECT 
+    p.PortfolioName,
+    ROUND(SUM(t.Unit * a.NAV) / NULLIF(SUM(t.Unit), 0), 2) AS WeightedAvgCost
+FROM 
+    Hedge_Funds.Transaction t
+JOIN 
+    Hedge_Funds.Portfolio p ON t.PortfolioID = p.PortfolioID
+JOIN 
+    Hedge_Funds.Asset a ON t.AssetID = a.AssetID
+WHERE 
+    t.TransactionType = 'Buy'
+GROUP BY 
+    p.PortfolioName;
+
+--15
+SELECT 
+    TicketID,
+    Status,
+    Issue,
+    CreationTime,
+    EndTime
+FROM 
+    Hedge_Funds.SupportTicket
+WHERE 
+    UserId = 'ADO144';
